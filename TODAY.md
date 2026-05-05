@@ -1,5 +1,9 @@
 # Today — T-5 · Tuesday May 5, 2026
 
+> Historical planning note: this file is the original morning execution plan.
+> Actual outcomes and blockers are captured in `TODAY_2026-05-05_RECAP.md`
+> and `AMD_DEV_CLOUD_DEVEX_NOTES.md`.
+>
 > **Goal of today:** Droplet is alive, repo is on GitHub, wallets are funded, the 72B base model serves a `curl` from vLLM, and `lora_training/data/*.jsonl` exists for all 5 lenders. **No LoRA training today** — that's tomorrow.
 >
 > **One-line success criterion:** *Tomorrow morning I can wake up, SSH into the droplet, run `python lora_training/train_all.py --teacher=llm` and walk away — there is nothing left to set up.*

@@ -13,6 +13,15 @@ and KYC happen out-of-band at the funding stage with the winning lender,
 not at the marketplace boundary. Built for the AMD x Lablab.ai Developer
 Hackathon, May 2026.
 
+## Hackathon Review Packet
+
+For moderators/reviewers who want the condensed trail of evidence:
+
+- `HACKATHON_MODERATOR_REVIEW_INDEX.md`
+- `TODAY_2026-05-05_RECAP.md`
+- `AMD_DEV_CLOUD_DEVEX_NOTES.md`
+- `AMD_VLLM_ROCM_REPRO_MATRIX.md`
+
 ## Architecture
 
 ```
