@@ -1,0 +1,14 @@
+# Training-only deps for lora_training/. Used by infra/Dockerfile.training
+# on top of rocm/pytorch:latest. The base image already provides
+# ROCm-compatible torch + flash-attention; do NOT pull bitsandbytes,
+# unsloth, xformers, or flash-attn from upstream — each has known ROCm
+# friction.
+transformers
+peft
+trl
+accelerate
+datasets
+huggingface_hub
+sentencepiece
+protobuf
+rich

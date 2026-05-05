@@ -1,0 +1,12 @@
+# AMD's official ROCm + PyTorch image for LoRA training. The base provides
+# torch + flash-attention compiled for ROCm; do NOT pull bitsandbytes /
+# unsloth / xformers / flash-attn from upstream pip (each has known ROCm
+# friction). requirements-train.txt only covers the stack on top of torch.
+FROM rocm/pytorch:latest
+
+WORKDIR /app
+COPY requirements-train.txt /app/
+RUN pip install --no-cache-dir -r requirements-train.txt
+
+COPY . /app
+CMD ["python", "lora_training/train_all.py"]

@@ -1,0 +1,11 @@
+# AMD's official ROCm + vLLM base — preinstalled, tested. Do NOT bootstrap
+# ROCm or torch from scratch on top of bare Ubuntu; AMD's image already has
+# the right driver-userland match for the MI300X.
+FROM rocm/vllm:latest
+
+WORKDIR /app
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
+CMD ["bash", "infra/start_vllm.sh"]

@@ -1,0 +1,17 @@
+# Runtime deps for the marketplace, lender agents, and dealer UI. Used by
+# infra/Dockerfile.serving on top of rocm/vllm:latest. The base image
+# already provides ROCm + torch + vLLM — don't reinstall those.
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy[asyncio]
+aiosqlite
+httpx
+openai
+python-dotenv
+rich
+streamlit
+cdp-sdk
+x402
+amdsmi
