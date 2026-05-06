@@ -14,6 +14,7 @@ Flow:
 from __future__ import annotations
 
 import asyncio
+import os
 from decimal import Decimal
 
 import httpx
@@ -23,7 +24,7 @@ from shared.logging import get_logger, setup_logging
 
 POLL_INTERVAL_S = 2.0
 MAX_WAIT_S = 60.0
-LOAN_AMOUNT = Decimal("30000")
+LOAN_AMOUNT = Decimal(os.getenv("E2E_LOAN_AMOUNT", "30000"))
 
 
 async def main() -> int:

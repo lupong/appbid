@@ -72,3 +72,5 @@ lora_adapters/
 *.pid
 tmp/
 artifacts/
+local_backup/
+local_manim/

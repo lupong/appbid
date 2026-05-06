@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     # Marketplace economics
     insertion_fee_usdc: Decimal = Decimal("0.10")
     win_premium_rate: Decimal = Decimal("0.015")
+    settlement_mode: str = "live"
 
     # X402 facilitator mode:
     #   local  - deterministic in-process facilitator (default, dev/test)

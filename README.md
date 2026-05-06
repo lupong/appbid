@@ -17,10 +17,35 @@ Hackathon, May 2026.
 
 For moderators/reviewers who want the condensed trail of evidence:
 
-- `HACKATHON_MODERATOR_REVIEW_INDEX.md`
-- `TODAY_2026-05-05_RECAP.md`
-- `AMD_DEV_CLOUD_DEVEX_NOTES.md`
-- `AMD_VLLM_ROCM_REPRO_MATRIX.md`
+- `docs/hackathon/review/HACKATHON_MODERATOR_REVIEW_INDEX.md`
+- `docs/hackathon/recaps/TODAY_2026-05-05_RECAP.md`
+- `docs/hackathon/recaps/TODAY_2026-05-06_RECAP.md`
+- `docs/devex/AMD_DEV_CLOUD_DEVEX_NOTES.md`
+- `docs/devex/AMD_VLLM_ROCM_REPRO_MATRIX.md`
+- `docs/hackathon/runbooks/DEMO_PATH_FRI_SAT.md`
+- `artifacts/profiling/README_WED_2026-05-06.md`
+
+## Current Demo Mode (May 6 state)
+
+For the submission-safe demo path, run:
+
+- `INSERTION_FEE_USDC=0` (avoids x402 payment-path instability during live demo)
+- `SETTLEMENT_MODE=stub` (returns deterministic settlement tx hashes)
+- `LORA_MODE=prompt` (current stable serving mode on this ROCm stack)
+- FP8 model serving at `http://127.0.0.1:8003/v1`
+
+This keeps the core product flow reliable:
+publish request -> multi-lender bidding -> accept -> settlement response.
+
+### Why settlement is stubbed in demo mode
+
+Live CDP settlement on this run hit spendability/faucet constraints despite
+wallet balances being present. The project keeps both paths:
+
+- `SETTLEMENT_MODE=live` (real transfers via CDP)
+- `SETTLEMENT_MODE=stub` (deterministic tx hashes for demo reliability)
+
+See `docs/devex/AMD_DEV_CLOUD_DEVEX_NOTES.md` for exact error chronology and evidence.
 
 ## Architecture
 
@@ -195,6 +220,21 @@ underwriter-mediated approve/decline flow (no Python pre-filter — every
 decision is the LLM's call, mocked in tests), and the full publish → bid →
 accept settlement flow with the X402 middleware exercised end-to-end
 (settlement executor stubbed so tests don't touch chain).
+
+## Profiling artifacts (Wednesday evidence)
+
+AppBid concurrency telemetry capture artifacts are in:
+
+- `artifacts/profiling/wed_raw_metrics.csv`
+- `artifacts/profiling/wed_utilization.png`
+- `artifacts/profiling/wed_bandwidth.png`
+- `artifacts/profiling/wed_power_thermals.png`
+- `artifacts/profiling/wed_summary.json`
+- `artifacts/profiling/wed_concurrency_demo.log`
+
+Companion notes:
+
+- `artifacts/profiling/README_WED_2026-05-06.md`
 
 ## Project layout
 

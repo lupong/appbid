@@ -114,6 +114,10 @@ class StubSettlementExecutor:
 
 def get_settlement_executor() -> SettlementExecutor:
     """FastAPI dependency. Override in tests via app.dependency_overrides."""
+    settings = get_settings()
+    if settings.settlement_mode.strip().lower() == "stub":
+        logger.warning("settlement executor mode=stub (no on-chain transfers)")
+        return StubSettlementExecutor()
     return CDPSettlementExecutor()
 
 

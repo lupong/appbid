@@ -90,6 +90,10 @@ class X402InsertionFeeMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         settings = get_settings()
+        if settings.insertion_fee_usdc <= 0:
+            # Explicitly allow zero-fee mode for local/dev smoke tests.
+            return await call_next(request)
+
         pay_to = settings.marketplace_wallet_id or "marketplace-wallet"
         requirements = build_requirements_v1(request.url.path, pay_to, settings.insertion_fee_usdc)
         expected_amount_atomic = requirements.max_amount_required

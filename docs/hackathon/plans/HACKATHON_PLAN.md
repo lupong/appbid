@@ -6,6 +6,7 @@ AMD x Lablab.ai Developer Hackathon · Track: **X402 Payments** · Solo (Andrew 
 - **Today:** Tuesday May 5, 2026 — **T-5 days**
 - **Submission portal:** https://lablab.ai/ai-hackathons/amd-developer (Submit tab)
 - **Goal:** *Submit by Saturday May 9 evening.* Sunday is reserved as bug-fix and re-submit buffer, not as a build day.
+- **Demo runbook:** see `../runbooks/DEMO_PATH_FRI_SAT.md` for the current canonical Friday/Saturday execution path.
 
 ---
 
@@ -57,7 +58,34 @@ Times are local. Each day has **one acceptance gate**; if it doesn't pass, that 
 
 > **If LoRA training breaks** (ROCm misbehaves on multi-LoRA, OOM, etc.): fall back to `LORA_MODE=prompt` on the same MI300X. The whole demo still works; you lose the "5 adapters in one GPU" framing in the deck but keep the "72B base on one GPU" framing. Don't burn more than 3 hours fighting LoRA — pivot and move on.
 
+### 3.1 Integrated plan snapshot (migrated from daily ad-hoc docs)
+
+The former standalone daily docs are now folded here and in recap docs.
+
+#### May 6 FP8 objective and gates
+
+- Objective:
+  - Quantize `Qwen/Qwen2.5-72B-Instruct` BF16 -> FP8 with AMD Quark on MI300X.
+- Success criteria:
+  - FP8 artifact generated and loadable in vLLM.
+  - BF16 vs FP8 benchmarks captured (latency, req/s, tok/s, VRAM behavior).
+  - Quality guardrail checks documented for underwriting JSON behavior.
+  - Stability/soak evidence captured for the selected operating point.
+- Decision gate:
+  - if FP8 runtime/tooling blocked by midday, pivot to stable demo path and publish blockers transparently.
+
+#### T-5 bootstrap execution intent (historical)
+
+- Bring up MI300X runtime, wallets, base-model serving, and training-data generation.
+- Preserve a next-morning-ready state for LoRA training execution.
+- Outcomes and deviations are captured in:
+  - `../recaps/TODAY_2026-05-05_RECAP.md`
+  - `../recaps/TODAY_2026-05-06_RECAP.md`
+  - `../devex/AMD_DEV_CLOUD_DEVEX_NOTES.md`
+
 ### T-3 · Thu May 7 — Close the two outstanding TODOs + record demo
+
+Detailed day plan: `TOMORROW_2026-05-07_EXECUTION_PLAN.md`.
 
 | When | Block | Output |
 |---|---|---|
@@ -103,9 +131,9 @@ Reserved. If the submission was rejected for a missing field, fix it. If everyth
 
 These are real tradeoffs. List them on a slide as "future work" so judges don't assume they're missing.
 
-- **Funding-stage flow** — out of scope per `CONTEXT.md`, Phase 2.
+- **Funding-stage flow** — out of scope per `../../CONTEXT.md`, Phase 2.
 - **Real on-chain wallet custody for lenders** — using the demo BYO-wallet pattern with the marketplace-provisioned demo wallets. Lenders bring their own in production.
-- **GNN fraud check, OCR pipeline, package classifier, intake triage** — listed in `CONTEXT.md § Inputs from other threads — unmerged`. Don't try to merge any of it now. Cut.
+- **GNN fraud check, OCR pipeline, package classifier, intake triage** — listed in `../../CONTEXT.md § Inputs from other threads — unmerged`. Don't try to merge any of it now. Cut.
 - **Per-package LoRA specialization axis** — interesting alternate; not this week.
 - **bitsandbytes 4-bit on ROCm** — known fragile per `lora_training/README.md`. BF16 only.
 
@@ -133,7 +161,7 @@ Read straight off this. Don't ad-lib. Practice it twice; record on the third tak
 1. **Title.** Credit App+ · Reverse-auction marketplace for auto-loan bid requests · Andrew Pongco · AMD x Lablab.ai 2026
 2. **The 2017 story.** Won Cox Automotive's first hackathon. Mark O'Neill blessed it. Never shipped — would have cannibalized per-app fees. *(This is the originality + business-value hook.)*
 3. **Why now.** x402 micropayments + MI300X 192 GB. Two technologies that didn't exist in 2017.
-4. **Architecture diagram.** Same one as `README.md`. Streamlit → FastAPI → 5 lender agents → vLLM → MI300X.
+4. **Architecture diagram.** Same one as `../../README.md`. Streamlit → FastAPI → 5 lender agents → vLLM → MI300X.
 5. **Live demo screenshot.** Concurrency demo + `rocm-smi` panel side-by-side.
 6. **Why AMD.** 72B + 5 LoRA + KV cache fit on **one** MI300X. H100 80 GB cannot. ROCm + vLLM + PEFT + Qwen — open stack.
 7. **x402 + CDP.** $0.10 insertion fee · 1.5% win premium · 70/25/5 atomic rev-split · Base Sepolia · BaseScan link.

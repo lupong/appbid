@@ -29,12 +29,23 @@
 
 ## Assets produced today
 
-- `AMD_DEV_CLOUD_DEVEX_NOTES.md`
-- `AMD_VLLM_ROCM_REPRO_MATRIX.md`
-- `AMD_MI300X_VLLM_REPRO_BUNDLE.md`
-- `AMD_DEV_CLOUD_BOOTSTRAP_COMMANDS.md`
+- `../devex/AMD_DEV_CLOUD_DEVEX_NOTES.md`
+- `../devex/AMD_VLLM_ROCM_REPRO_MATRIX.md`
+- `../devex/AMD_MI300X_VLLM_REPRO_BUNDLE.md`
+- `../devex/AMD_DEV_CLOUD_BOOTSTRAP_COMMANDS.md`
+- External support tracking: DigitalOcean ticket `#12151413`
 
 ## Practical decision
 
 - Treat current vLLM+ROCm behavior as a platform limitation for this timeline.
 - Proceed with stable AMD-backed demo path while preserving this evidence for moderators.
+
+## Historical note (migration of `TODAY.md`)
+
+The original detailed T-5 execution checklist that lived in `TODAY.md` has been
+retired as a standalone file and folded into:
+
+- `../plans/HACKATHON_PLAN.md` (integrated timeline + execution gates)
+- `../devex/AMD_DEV_CLOUD_DEVEX_NOTES.md` (chronological run evidence)
+
+This recap remains the source of truth for what actually happened on 2026-05-05.
