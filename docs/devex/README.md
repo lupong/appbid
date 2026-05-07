@@ -6,6 +6,7 @@ This folder contains AMD Developer Cloud and ROCm/vLLM debugging evidence and re
 
 - `AMD_DEV_CLOUD_DEVEX_NOTES.md`
 - `AMD_VLLM_ROCM_REPRO_MATRIX.md`
+- `AMD_60MIN_TECH_EVAL_MATRIX_2026-05-07.md`
 
 ## Repro/support bundle
 

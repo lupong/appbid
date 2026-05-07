@@ -656,6 +656,121 @@ experience, friction points, and improvement ideas.
     emitted and counter-output persistence is inconsistent on this stack; telemetry
     evidence for this pass uses rocm-smi + workload logs.
 
+### 2026-05-07 07:20-07:35 (local) — AITER runtime evidence verification
+- Reconnected to the active MI300X droplet and validated current public IP (`129.212.181.67`) via API + SSH.
+- Scanned existing serving logs on droplet (`/root/appbid/*.log`) for backend markers.
+- Confirmed repeated AITER signatures in FP8/BF16 logs:
+  - `[Aiter] ... VLLM_ROCM_USE_AITER_MHA=True`
+  - `[Aiter] ... VLLM_ROCM_USE_AITER_TRITON_FP8_BMM=True`
+  - `Using Flash Attention backend on V1 engine.`
+- Practical outcome:
+  - AITER verification is now evidence-backed for deck/docs without requiring a new rebuild pass.
+
+### 2026-05-07 07:35-07:45 (local) — Optimum-AMD training-path integration + env constraint
+- Added explicit training flags for AMD optimization path in code:
+  - `lora_training/train_lora.py` -> `--amd-optimize`
+  - `lora_training/train_all.py` -> `--amd-optimize`
+- Added best-effort Optimum integration hook with explicit log output and hard failure if optimization is requested but no compatible Optimum path is importable.
+- Attempted install test on droplet venv (`Python 3.12.3`):
+  - `pip install optimum-amd` failed because package pins `onnxruntime<1.16`, and no matching wheel is available for this Python version.
+- Practical outcome:
+  - Code path is wired; environment/package compatibility remains the blocker on this runtime.
+
+### 2026-05-07 07:45-07:50 (local) — AMD model-source and CK due diligence
+- Firecrawl check of `huggingface.co/amd` found multiple Qwen-family artifacts, but no clear direct `Qwen2.5-72B` model target in this pass.
+- Captured CK reference from ROCm docs (`Optimizing with Composable Kernel`):
+  - CK is AMD's low-level programming model for performance-critical ML kernels and fusion via C++ templates.
+- Practical outcome:
+  - Can cite CK accurately as lower-level fused-kernel substrate beneath higher-level serving/runtime paths.
+
+### 2026-05-07 07:50-08:33 (local) — Recurrent SSH instability during benchmark automation
+- Goal during this window:
+  - run a detached on-droplet benchmark job to compare LoRA training baseline vs `--amd-optimize` with minimal chat/tool overhead.
+- Observed behavior:
+  - control plane remained `active` and public IP stayed assigned (`129.212.181.67`),
+    while SSH repeatedly failed with:
+    - `Connection refused`
+    - intermittent timeouts
+  - failures happened during both interactive SSH and SCP file transfer windows.
+- Recovery attempts performed:
+  - repeated reconnect/retry loops (SSH + SCP + remote launch).
+  - API-initiated `reboot` and `power_cycle` actions; SSH recovered briefly and then regressed to refusal state.
+  - benchmark runner was adjusted to be detached/automated to reduce dependence on persistent SSH sessions.
+- Practical impact:
+  - benchmark orchestration could not be completed reliably despite multiple infra recovery attempts.
+  - this appears consistent with prior platform instability signatures already documented in this file (active droplet with unstable SSH accessibility).
+- Suggested platform improvement:
+  - provide a stronger health signal than `active` for GPU droplets (for example, a guest-level SSH readiness heartbeat),
+  - and/or expose a recovery workflow that guarantees network/SSH readiness before marking instance healthy.
+
+### 2026-05-07 09:09-09:44 (local) — Optimum benchmark completion on fresh droplet (with spacing discipline)
+- Goal:
+  - complete baseline vs `--amd-optimize` LoRA training benchmark with low-pressure SSH sequencing.
+- Method:
+  - required multiple successful SSH probes before action;
+  - spaced SCP/SSH commands with 30-40s delays;
+  - launched benchmark detached via `/root/appbid_optimum_bench.sh`.
+- Environment/result notes:
+  - benchmark summary completed with both runs passing at process level:
+    - baseline: `exit_code=0`, wall ~`29.19s`
+    - amd_opt: `exit_code=0`, wall ~`18.11s`
+  - trainer metrics from logs:
+    - baseline: `train_runtime=8.1444`, `train_samples_per_second=3.929`, `train_steps_per_second=0.246`
+    - amd_opt: `train_runtime=7.2168`, `train_samples_per_second=4.434`, `train_steps_per_second=0.277`
+  - critical caveat:
+    - `optimum` and `optimum.amd` import successfully, but expected transform modules
+      (`optimum.amd.bettertransformer`, `optimum.bettertransformer`) are not present in this runtime.
+    - `--amd-optimize` therefore completes without applying a confirmed Optimum transform for MI300X training.
+- Practical interpretation:
+  - this run is useful as a process/comparison sanity check,
+  - but should not be claimed as validated Optimum-AMD training acceleration evidence.
+- Deck-safe line:
+  - "Optimum-AMD package is detected in our training runtime, but a compatible MI300X training transform was not exposed in this environment; we retained the stable BF16 training path and documented the gap transparently."
+
+### 2026-05-07 12:48-13:06 (local) — 60-minute eval completion + product-shape smoke
+- 60-minute evaluation run completed with artifacts under:
+  - `/root/appbid/artifacts/profiling/60min_eval_20260507_163121/`
+- Initial `summary.json` was empty due to extractor selecting the wrong target path.
+  - Fixed by binding extractor to the run-local `OUT_DIR`.
+  - Regenerated `summary.json` from captured logs.
+- Measured AITER A/B (`c=4`) result:
+  - ON: `7.43 req/s`, `327.87 tok/s`, `p95=0.59s`
+  - OFF: `6.58 req/s`, `307.56 tok/s`, `p95=0.81s`
+  - outcome: AITER ON kept as default.
+- Added lender-side runtime toggle `PAYMENT_MODE=stub` to simulate x402 payment
+  envelopes while keeping insertion-fee middleware active.
+- Live smoke executed in simulated payment + stub settlement mode:
+  - publish -> bids -> accept -> settlement
+  - result: `E2E PASS`
+  - settlement tx hashes: deterministic stub values (`0xstubsettle00/01/02...`).
+
+### 2026-05-07 13:33-13:36 (local) — web exposure blocker and fix
+- Symptom:
+  - Streamlit process was healthy and listening on `0.0.0.0:8501`, but browser access
+    to `http://<droplet-ip>:8501` timed out.
+- Root cause:
+  - host firewall (`ufw`) allowed only `22/80/443`; app/demo ports were blocked.
+- Fix:
+  - opened inbound rules for `8501/tcp` and `8016/tcp`.
+- Validation:
+  - external `curl` to `http://<droplet-ip>:8501` returned `HTTP/1.1 200 OK`.
+  - user confirmed browser path worked afterward.
+
+### 2026-05-07 13:51-14:26 (local) — evidence pull, snapshot rollover, and GPU teardown
+- Pulled final evidence artifacts from droplet to repo:
+  - `artifacts/profiling/60min_eval_20260507_163121/`
+  - `artifacts/profiling/e2e-8016.log`
+  - `artifacts/profiling/runner-8016.log`
+  - `artifacts/profiling/streamlit-8501.log`
+- Created final snapshot before teardown:
+  - new snapshot: `appbid-final-20260507-1855` (image id `227675728`)
+  - observed extended `pending` period before becoming `available`.
+- Deleted previous snapshot after new snapshot availability:
+  - deleted image id `227555448` (`appbid-final-20260506-150705`).
+- Destroyed active MI300X droplet:
+  - droplet id `569562698` deleted (`204` API response).
+  - post-check: no active droplets in project account at wrap-up.
+
 ## Suggested Structure for Future Entries
 - **What I was trying to do**
 - **What worked well**

@@ -1,0 +1,10 @@
+# This file is used internally by FFMPEG.
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/1584795214_3434798809_223132457.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_3506589752_4062973533.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_4157792864_1101682277.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_3626498784_2938386341.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_2178644180_2880761986.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_2574473371_1671778289.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_486993027_1541252535.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_1237448853_2749954720.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3HackathonUpdate/4072820271_3877907558_3926531592.mp4'

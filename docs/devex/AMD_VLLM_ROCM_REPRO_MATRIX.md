@@ -70,3 +70,16 @@ LoRAs (when enabled): `stcu_retail_auto`, `unitus_community_cu`, `exeter_finance
   - expected output sanity checks
 - Provide a recommended stable config for MI300X + LoRA serving.
 - Investigate eager-mode text corruption and compiled-mode dynamic-shape guard failure.
+
+## AITER Verification Note (2026-05-07 follow-up)
+
+- Additional MI300X serving logs from the FP8 path show explicit AITER markers:
+  - `[Aiter] ... VLLM_ROCM_USE_AITER_MHA=True`
+  - `[Aiter] ... VLLM_ROCM_USE_AITER_TRITON_FP8_BMM=True`
+  - `Using Flash Attention backend on V1 engine.`
+- Evidence files on droplet:
+  - `/root/appbid/fp8-72b-serve.log`
+  - `/root/appbid/fp8-ptpc-vllm-serve.log`
+  - `/root/appbid/bf16-72b-serve.log`
+- Interpretation for judge-facing narrative:
+  - runtime is selecting AMD-specific AITER-enabled attention/kernel paths in the tested serving runs.

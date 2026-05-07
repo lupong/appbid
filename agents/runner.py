@@ -11,7 +11,7 @@ import signal
 from pathlib import Path
 
 from agents.lender import Lender
-from agents.payment import CDPPayer
+from agents.payment import CDPPayer, StubPayer
 from agents.underwriter import Underwriter
 from data.bid_policies import LENDER_PROFILES
 from shared.config import get_settings
@@ -42,8 +42,11 @@ async def main() -> None:
     underwriter = Underwriter()
 
     lenders: list[Lender] = []
+    payment_mode = settings.payment_mode.strip().lower()
     for p in profiles:
-        if not p.wallet_id:
+        if payment_mode == "stub":
+            payer = StubPayer(payer_id=p.wallet_id or f"stub-{p.id}")
+        elif not p.wallet_id:
             log.warning("lender %s has no wallet_id; bids will fail at X402 step", p.id)
             payer = None
         else:
@@ -51,8 +54,8 @@ async def main() -> None:
         lenders.append(Lender(p, underwriter, settings.marketplace_url, payer=payer))
 
     log.info(
-        "starting %d lender agents marketplace=%s vllm=%s model=%s",
-        len(lenders), settings.marketplace_url, settings.vllm_url, settings.vllm_model,
+        "starting %d lender agents marketplace=%s vllm=%s model=%s payment_mode=%s",
+        len(lenders), settings.marketplace_url, settings.vllm_url, settings.vllm_model, payment_mode,
     )
 
     stop = asyncio.Event()

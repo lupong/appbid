@@ -14,6 +14,7 @@ torch / transformers / peft / datasets / accelerate are imported lazily inside
 from __future__ import annotations
 
 import argparse
+import importlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,6 +44,7 @@ class TrainConfig:
     batch_size: int = 4
     grad_accum: int = 4
     max_seq_len: int = 2048
+    amd_optimize: bool = False
 
 
 def _profile_by_id(profile_id: str) -> LenderProfile:
@@ -57,8 +59,39 @@ def describe(cfg: TrainConfig) -> str:
         f"profile={cfg.profile.id}  alias={cfg.profile.lora_alias}  "
         f"base={cfg.base_model}  data={cfg.data_path}  out={cfg.output_dir}  "
         f"rank={cfg.rank}  alpha={cfg.alpha}  epochs={cfg.epochs}  "
-        f"batch={cfg.batch_size}x{cfg.grad_accum}"
+        f"batch={cfg.batch_size}x{cfg.grad_accum}  amd_optimize={cfg.amd_optimize}"
     )
+
+
+def _apply_optimum_amd(model):
+    """Best-effort AMD optimization path for ROCm training runs."""
+    candidates = [
+        ("optimum.amd.bettertransformer", "BetterTransformer"),
+        ("optimum.bettertransformer", "BetterTransformer"),
+    ]
+    for module_name, symbol_name in candidates:
+        try:
+            module = importlib.import_module(module_name)
+            symbol = getattr(module, symbol_name, None)
+            if symbol is None:
+                continue
+            transform = getattr(symbol, "transform", None)
+            if callable(transform):
+                logger.info(
+                    "amd optimize enabled: applying %s.%s.transform",
+                    module_name,
+                    symbol_name,
+                )
+                return transform(model)
+        except Exception as exc:  # pragma: no cover - backend/package dependent
+            logger.warning("amd optimize candidate %s unavailable: %s", module_name, exc)
+    # Current optimum-amd package may only expose RyzenAI helpers, which are not
+    # directly applicable to this MI300X training path.
+    logger.warning(
+        "amd optimize requested but no compatible Optimum transform was found "
+        "for this runtime; continuing without transformation."
+    )
+    return model
 
 
 def train(cfg: TrainConfig) -> None:
@@ -84,6 +117,8 @@ def train(cfg: TrainConfig) -> None:
         torch_dtype=torch.bfloat16,
         device_map="auto",
     )
+    if cfg.amd_optimize:
+        model = _apply_optimum_amd(model)
 
     lora_cfg = LoraConfig(
         r=cfg.rank,
@@ -148,6 +183,11 @@ def main() -> None:
     p.add_argument("--epochs", type=int, default=1)
     p.add_argument("--rank", type=int, default=16)
     p.add_argument("--alpha", type=int, default=32)
+    p.add_argument(
+        "--amd-optimize",
+        action="store_true",
+        help="enable Optimum-backed AMD optimization path before LoRA training",
+    )
     p.add_argument("--dry-run", action="store_true", help="print plan without training")
     args = p.parse_args()
 
@@ -160,6 +200,7 @@ def main() -> None:
         epochs=args.epochs,
         rank=args.rank,
         alpha=args.alpha,
+        amd_optimize=args.amd_optimize,
     )
 
     if args.dry_run:

@@ -50,6 +50,11 @@ def main() -> None:
     p.add_argument("--rank", type=int, default=16)
     p.add_argument("--alpha", type=int, default=32)
     p.add_argument(
+        "--amd-optimize",
+        action="store_true",
+        help="enable Optimum-backed AMD optimization path during LoRA training",
+    )
+    p.add_argument(
         "--teacher",
         choices=["stub", "llm"],
         default="stub",
@@ -69,7 +74,7 @@ def main() -> None:
     teacher = make_teacher(args.teacher)
     console.rule(
         f"[bold]LoRA training plan[/]  base={base_model}  teacher={args.teacher}  "
-        f"dry_run={args.dry_run}"
+        f"dry_run={args.dry_run}  amd_optimize={args.amd_optimize}"
     )
 
     async def _generate(profile, out_path: Path) -> None:
@@ -92,6 +97,7 @@ def main() -> None:
             epochs=args.epochs,
             rank=args.rank,
             alpha=args.alpha,
+            amd_optimize=args.amd_optimize,
         )
 
         if args.dry_run:

@@ -31,11 +31,18 @@ For the submission-safe demo path, run:
 
 - `INSERTION_FEE_USDC=0` (avoids x402 payment-path instability during live demo)
 - `SETTLEMENT_MODE=stub` (returns deterministic settlement tx hashes)
+- `PAYMENT_MODE=stub` (optional: simulate lender-side x402 payment envelopes)
 - `LORA_MODE=prompt` (current stable serving mode on this ROCm stack)
 - FP8 model serving at `http://127.0.0.1:8003/v1`
 
 This keeps the core product flow reliable:
 publish request -> multi-lender bidding -> accept -> settlement response.
+
+If you want to exercise the x402 middleware without real chain spend, keep
+`INSERTION_FEE_USDC` non-zero and run:
+
+- `X402_FACILITATOR_MODE=local`
+- `PAYMENT_MODE=stub`
 
 ### Why settlement is stubbed in demo mode
 
@@ -235,6 +242,7 @@ AppBid concurrency telemetry capture artifacts are in:
 Companion notes:
 
 - `artifacts/profiling/README_WED_2026-05-06.md`
+- `artifacts/profiling/README_THU_2026-05-07.md`
 
 ## Project layout
 

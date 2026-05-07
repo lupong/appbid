@@ -1,0 +1,11 @@
+# This file is used internally by FFMPEG.
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/1584795214_1287797542_223132457.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_504889705_2023860264.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_246928656_1178214014.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_2783219449_879754517.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_2142868534_4042604942.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_969120298_1023644379.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_3112525132_4245263308.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_3958709760_3227985325.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_2230302680_3892117350.mp4'
+file 'file:/Users/andrewpongco/Developer/appbid/media/videos/amd_day_diagram/480p15/partial_movie_files/Day3BusinessFlowPowered/4072820271_2937592379_2131540249.mp4'

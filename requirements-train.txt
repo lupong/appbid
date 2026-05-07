@@ -6,6 +6,9 @@
 transformers
 peft
 trl
+# `optimum-amd` currently pins `onnxruntime<1.16`, which has no py3.12 wheels.
+# Keep it optional for py3.10-compatible environments.
+optimum-amd; python_version < "3.11"
 accelerate
 datasets
 huggingface_hub

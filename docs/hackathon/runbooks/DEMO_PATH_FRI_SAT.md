@@ -35,8 +35,10 @@ nohup env INSERTION_FEE_USDC=0 SETTLEMENT_MODE=stub \
   --host 127.0.0.1 --port 8015 \
   > /root/appbid/marketplace-8015.log 2>&1 &
 
-# 2) Runner against demo marketplace
+# 2) Runner against demo marketplace (stub payment mode is optional here;
+#    it matters when INSERTION_FEE_USDC is non-zero and you still want x402 simulated)
 nohup env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8015 \
+  PAYMENT_MODE=stub \
   VLLM_URL=http://127.0.0.1:8003/v1 \
   VLLM_MODEL=/app/models/qwen2.5-72b-ptpc-fp8-vllm \
   LORA_MODE=prompt \
@@ -50,6 +52,27 @@ nohup env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8015 \
 cd /root/appbid
 env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8015 \
   .venv/bin/python scripts/e2e_test.py
+```
+
+## Simulated x402 + simulated settlement (full product-shape E2E)
+
+If you want x402 middleware exercised while still avoiding real chain spend:
+
+```bash
+# marketplace (x402 on, settlement stubbed)
+nohup env INSERTION_FEE_USDC=0.10 X402_FACILITATOR_MODE=local SETTLEMENT_MODE=stub \
+  .venv/bin/python -m uvicorn marketplace.server:app \
+  --host 127.0.0.1 --port 8016 \
+  > /root/appbid/marketplace-8016.log 2>&1 &
+
+# runner (synthetic payment envelopes)
+nohup env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8016 PAYMENT_MODE=stub \
+  VLLM_URL=http://127.0.0.1:8003/v1 VLLM_MODEL=/app/models/qwen2.5-72b-ptpc-fp8-vllm \
+  LORA_MODE=prompt .venv/bin/python -m agents.runner \
+  > /root/appbid/runner-fp8-8016.log 2>&1 &
+
+# smoke test
+env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8016 .venv/bin/python scripts/e2e_test.py
 ```
 
 ## Expected success markers

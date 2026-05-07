@@ -12,12 +12,15 @@ This index points reviewers to the highest-signal project evidence from the curr
 
 - `../recaps/TODAY_2026-05-05_RECAP.md` — concise summary of wins, blockers, and decisions
 - `../recaps/TODAY_2026-05-06_RECAP.md` — FP8 quantization/serve outcomes, E2E decision path, and profiling capture
+- `../recaps/TODAY_2026-05-07_RECAP.md` — 60-minute eval outcomes, AITER A/B deltas, capacity/economics framing, and DevEx gaps
 - `../devex/AMD_DEV_CLOUD_DEVEX_NOTES.md` — chronological DevEx findings on AMD Developer Cloud
 - `../devex/AMD_VLLM_ROCM_REPRO_MATRIX.md` — reproducible matrix for vLLM+ROCm behavior
+- `../devex/AMD_60MIN_TECH_EVAL_MATRIX_2026-05-07.md` — 60-minute eval design + completed run interpretation
 - `../devex/AMD_MI300X_VLLM_REPRO_BUNDLE.md` — focused support-style repro notes
 - `../devex/AMD_DEV_CLOUD_BOOTSTRAP_COMMANDS.md` — bootstrap command trail used on droplet
 - `../runbooks/DEMO_PATH_FRI_SAT.md` — canonical demo runbook for Friday/Saturday
 - `../../artifacts/profiling/README_WED_2026-05-06.md` — profiling methodology and artifact index
+- `../../artifacts/profiling/README_THU_2026-05-07.md` — Thursday technical evaluation and live smoke evidence index
 
 ## Model/training related
 

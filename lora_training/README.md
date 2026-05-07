@@ -56,6 +56,9 @@ quality on each lender's rate sheet.
 # 3. Generate real training data with the LLM teacher (vLLM must be up).
 #    Then train. ~3-5 hours wall-clock for 5 lenders @ 300 rows each.
 .venv/bin/python lora_training/train_all.py --teacher=llm
+
+# 4. Optional: explicitly enable Optimum-backed AMD optimizations.
+.venv/bin/python lora_training/train_all.py --teacher=llm --amd-optimize
 ```
 
 Adapters land at `./lora_adapters/<lora_alias>/` (derived from
@@ -82,6 +85,7 @@ infra/devcloud.sh serve dev   # or: infra/devcloud.sh serve demo
 | Precision     | BF16    | No bitsandbytes — see "ROCm caveats" below |
 | Examples / lender | 300 | `--n` to override |
 | Teacher       | stub    | `--teacher=llm` for real labels; `stub` is dry-run only |
+| AMD optimize  | off     | pass `--amd-optimize`; requires `optimum-amd` |
 | Base model    | `$VLLM_MODEL` from settings | Defaults to Qwen2.5-72B-Instruct |
 
 ## ROCm caveats
@@ -99,6 +103,13 @@ If the BF16 path also hits a ROCm/PEFT incompatibility:
 3. As a last resort, fall back to `LORA_MODE=prompt` at runtime — the
    marketplace + agents work fully without LoRA, since the same
    `rate_sheet_text` becomes the system prompt against the base model.
+
+Optimum note:
+
+- `--amd-optimize` depends on `optimum-amd`, which currently pins
+  `onnxruntime<1.16` (no py3.12 wheel availability in our tested environment).
+- Keep this path optional and treat it as environment-dependent until package
+  compatibility catches up.
 
 The `LORA_MODE=prompt` fallback is intentional — a LoRA training issue
 mid-week doesn't block the demo.

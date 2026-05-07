@@ -8,6 +8,29 @@ This plan is scoped to AppBid's AI path only (lender LoRA training + inference o
 - Artifacts now available under `../../artifacts/profiling/` (CSV + charts + summary).
 - Remaining items from this plan are Thursday/Friday objectives (Optimum-AMD path and AITER verification evidence).
 
+## Status update (as of 2026-05-07 AM)
+
+- AITER verification evidence is now captured from real MI300X serving logs (`/root/appbid/fp8-72b-serve.log`, `fp8-ptpc-vllm-serve.log`), including `[Aiter] ... VLLM_ROCM_USE_AITER_MHA=True` markers.
+- Optimum-AMD wiring is implemented in training code behind `--amd-optimize` (`lora_training/train_lora.py`, `lora_training/train_all.py`) with explicit runtime logging.
+- Practical packaging blocker found on current py3.12 environment: `optimum-amd==0.1.0` requires `onnxruntime<1.16`, which has no py3.12 wheels. This is now tracked as an environment/version constraint rather than a code-gap.
+- AMD Hugging Face due diligence completed: Qwen-family models exist under `huggingface.co/amd`, but no clear direct `Qwen2.5-72B` drop was found in this check.
+- ROCm Composable Kernel (CK) reference captured from ROCm docs and can be cited as the lower-level kernel/fusion programming model under higher-level runtime paths.
+
+## Status update (as of 2026-05-07 EOD)
+
+- 60-minute technical evaluation run completed end-to-end on MI300X with artifacts at
+  `../../artifacts/profiling/60min_eval_20260507_163121/`.
+- AITER A/B comparison at `c=4` is now quantified in-repo:
+  - ON: `7.43 req/s`, `327.87 tok/s`, `p95=0.59s`
+  - OFF: `6.58 req/s`, `307.56 tok/s`, `p95=0.81s`
+  - outcome: keep AITER ON as default runtime setting.
+- Soak phase completed for 120 loops with no request-error trend in benchmark summaries.
+- Structured-output guardrail passed (`20/20` parse success on sample set).
+- Product-shape live smoke also passed in simulated payment mode:
+  - x402 path exercised with `PAYMENT_MODE=stub`
+  - settlement path in `SETTLEMENT_MODE=stub`
+  - publish -> bids -> accept -> settlement returned `E2E PASS`.
+
 ## Wednesday — AMD profiling evidence (Omniperf / rocprof)
 
 ### Objective
