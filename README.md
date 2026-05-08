@@ -1,4 +1,4 @@
-# Credit App+
+# AppBid
 
 A reverse-auction marketplace for auto-loan **bid requests**. A dealer
 publishes a PII-free structural proposal (dealer-pulled FICO, vehicle, term,
