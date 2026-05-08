@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ import httpx
 import streamlit as st
 
 from shared.config import get_settings
+from ui.design_theme import apply_appbid_theme, render_page_header, render_sidebar_brand
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -33,6 +35,9 @@ st.set_page_config(page_title="Credit App+ Dealer", layout="wide")
 settings = get_settings()
 MKT = settings.marketplace_url
 BASESCAN_TX = "https://sepolia.basescan.org/tx"
+DEMO_MODE = settings.settlement_mode
+
+apply_appbid_theme()
 
 
 def _api_get(path: str, params: dict[str, Any] | None = None) -> Any:
@@ -51,8 +56,128 @@ def _tx_link(tx_hash: str) -> str:
     return f"[{tx_hash[:10]}…]({BASESCAN_TX}/{tx_hash})"
 
 
+def _render_overview_card(label: str, value: str, sub: str, health: bool = False) -> str:
+    health_badge = "<div class='appbid-health-live'>LIVE</div>" if health else ""
+    return (
+        "<div class='appbid-overview-card'>"
+        f"<div class='label'>{label}</div>"
+        f"<div class='value'>{value}</div>"
+        f"<div class='sub'>{sub}</div>"
+        f"{health_badge}"
+        "</div>"
+    )
+
+
+def render_terminal_overview() -> None:
+    """Render prototype-like health + KPI strips above tabbed content."""
+    try:
+        open_requests = _api_get("/apps", {"status": "open"})
+        closed_requests = _api_get("/apps", {"status": "closed"})
+        treasury = _api_get("/treasury")
+    except httpx.HTTPError:
+        st.warning("Live overview is unavailable until marketplace APIs respond.")
+        return
+
+    total_requests = len(open_requests) + len(closed_requests)
+    avg_bids = (treasury["total_bids"] / total_requests) if total_requests else 0.0
+    insertion_fee = Decimal(str(settings.insertion_fee_usdc))
+
+    market_latency_ms: str
+    market_subtext: str
+    t0 = time.perf_counter()
+    try:
+        _api_get("/healthz")
+        market_latency_ms = f"{(time.perf_counter() - t0) * 1000:.0f}ms"
+        market_subtext = "live health probe"
+    except httpx.HTTPError:
+        market_latency_ms = "down"
+        market_subtext = "health probe failed"
+
+    vllm_latency_ms: str
+    vllm_subtext: str
+    try:
+        t1 = time.perf_counter()
+        vllm_models_url = f"{settings.vllm_url.rstrip('/')}/models"
+        r = httpx.get(vllm_models_url, timeout=4.0)
+        r.raise_for_status()
+        vllm_latency_ms = f"{(time.perf_counter() - t1) * 1000:.0f}ms"
+        vllm_subtext = settings.vllm_model.split("/")[-1]
+    except httpx.HTTPError:
+        vllm_latency_ms = "down"
+        vllm_subtext = settings.vllm_model.split("/")[-1]
+
+    st.markdown("<div class='appbid-section-label'>System Health</div>", unsafe_allow_html=True)
+    h1, h2, h3, h4 = st.columns(4)
+    with h1:
+        st.markdown(
+            _render_overview_card("Marketplace API", market_latency_ms, market_subtext, health=True),
+            unsafe_allow_html=True,
+        )
+    with h2:
+        st.markdown(
+            _render_overview_card(
+                "Bid Runner",
+                f"{len(open_requests)} open",
+                f"{treasury['total_bids']} total bids seen",
+                health=True,
+            ),
+            unsafe_allow_html=True,
+        )
+    with h3:
+        st.markdown(
+            _render_overview_card("Pricing Model", vllm_latency_ms, vllm_subtext, health=True),
+            unsafe_allow_html=True,
+        )
+    with h4:
+        mode_text = "STUB" if DEMO_MODE.lower() == "stub" else "LIVE"
+        st.markdown(
+            _render_overview_card("Settlement Mode", mode_text, f"insertion fee ${insertion_fee:.2f}"),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div class='appbid-section-label'>Marketplace KPIs</div>", unsafe_allow_html=True)
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(
+            _render_overview_card(
+                "Win Premium · Total",
+                f"${Decimal(treasury['win_premium_total_usdc']):,.2f}",
+                "topline gross",
+            ),
+            unsafe_allow_html=True,
+        )
+    with k2:
+        st.markdown(
+            _render_overview_card(
+                "Active Requests",
+                str(len(open_requests)),
+                f"{total_requests} total requests",
+            ),
+            unsafe_allow_html=True,
+        )
+    with k3:
+        st.markdown(
+            _render_overview_card(
+                "Bids Received",
+                str(treasury["total_bids"]),
+                f"{avg_bids:.1f} avg per request",
+            ),
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(
+            _render_overview_card(
+                "Marketplace Cut",
+                f"${Decimal(treasury['marketplace_cut_usdc']):,.2f}",
+                "win-premium share",
+            ),
+            unsafe_allow_html=True,
+        )
+
+
 # ============= Sidebar: publish =============
 with st.sidebar:
+    render_sidebar_brand()
     st.header("Publish Bid Request")
     with st.form("publish_request", clear_on_submit=True):
         dealer_id = st.text_input("Dealer ID", value="dlr-demo")
@@ -130,10 +255,15 @@ with st.sidebar:
 
 
 # ============= Main =============
-st.title("Credit App+ Dealer")
+render_page_header(
+    "Credit App+ Dealer Terminal",
+    "Publish PII-free bid requests, stream lender competition, then accept and settle.",
+    DEMO_MODE.upper(),
+)
+render_terminal_overview()
 
-tab_active, tab_settled, tab_treasury = st.tabs(
-    ["Active Requests", "Settled", "Marketplace Treasury"]
+tab_active, tab_settled, tab_treasury, tab_gpu = st.tabs(
+    ["Active Requests", "Settled", "Marketplace Treasury", "GPU Performance"]
 )
 
 
@@ -178,7 +308,8 @@ def render_active() -> None:
                     stips = bid.get("stipulations") or []
 
                     with bcols[0]:
-                        st.write(f"**{bid['lender_id']}**  ·  {bid.get('decision', 'approve')}")
+                        lender_label = bid.get("lender_name") or bid["lender_id"]
+                        st.write(f"**{lender_label}**  ·  {bid.get('decision', 'approve')}")
                         st.write(
                             f"APR **{apr_pct:.2f}%** · term **{bid['term_months']}mo** "
                             f"· max **${max_amt:,.0f}** · LTV {ltv_pct:.0f}%"
@@ -287,6 +418,62 @@ def render_treasury() -> None:
     st.caption(f"Marketplace wallet: `{stats['marketplace_wallet_id'] or 'unset'}`")
 
 
+@st.fragment(run_every=2)
+def render_gpu_performance() -> None:
+    try:
+        metrics = _api_get("/gpu/metrics")
+    except httpx.HTTPError as e:
+        st.error(f"GPU metrics unavailable: {e}")
+        return
+
+    if not metrics.get("available"):
+        st.warning("GPU metrics not available on this host yet.")
+        st.caption("If running on droplet, ensure amdsmi is installed and accessible.")
+        return
+
+    util = float(metrics.get("util_pct", 0.0))
+    mem_used = float(metrics.get("mem_used_gb", 0.0))
+    mem_total = float(metrics.get("mem_total_gb", 0.0))
+    power = float(metrics.get("power_w", 0.0))
+    temp = float(metrics.get("temp_c", 0.0))
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("GPU Utilization", f"{util:.0f}%")
+    c2.metric("VRAM", f"{mem_used:.1f} / {mem_total:.0f} GB")
+    c3.metric("Power", f"{power:.0f} W")
+    c4.metric("Temp", f"{temp:.0f} C")
+
+    hist = st.session_state.setdefault(
+        "gpu_perf_hist",
+        {"t": [], "util": [], "power": [], "temp": [], "mem_used": []},
+    )
+    ts = metrics.get("sampled_at", "")
+    hist["t"].append(ts)
+    hist["util"].append(util)
+    hist["power"].append(power)
+    hist["temp"].append(temp)
+    hist["mem_used"].append(mem_used)
+    for k in ("t", "util", "power", "temp", "mem_used"):
+        hist[k] = hist[k][-180:]
+
+    chart_rows = [
+        {"sample": t, "util_pct": u, "power_w": p, "temp_c": tc, "mem_used_gb": m}
+        for t, u, p, tc, m in zip(
+            hist["t"], hist["util"], hist["power"], hist["temp"], hist["mem_used"], strict=False
+        )
+    ]
+    if chart_rows:
+        st.line_chart(
+            chart_rows,
+            x="sample",
+            y=["util_pct", "power_w", "temp_c", "mem_used_gb"],
+            height=280,
+        )
+    st.caption(
+        "Live GPU telemetry from `/gpu/metrics` (2s refresh). Useful during burst submission demos."
+    )
+
+
 with tab_active:
     render_active()
 
@@ -295,3 +482,6 @@ with tab_settled:
 
 with tab_treasury:
     render_treasury()
+
+with tab_gpu:
+    render_gpu_performance()

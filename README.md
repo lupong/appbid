@@ -18,14 +18,16 @@ Hackathon, May 2026.
 For moderators/reviewers who want the condensed trail of evidence:
 
 - `docs/hackathon/review/HACKATHON_MODERATOR_REVIEW_INDEX.md`
+- `docs/hackathon/review/SECURITY_AND_DOC_AUDIT_2026-05-08.md`
 - `docs/hackathon/recaps/TODAY_2026-05-05_RECAP.md`
 - `docs/hackathon/recaps/TODAY_2026-05-06_RECAP.md`
 - `docs/devex/AMD_DEV_CLOUD_DEVEX_NOTES.md`
 - `docs/devex/AMD_VLLM_ROCM_REPRO_MATRIX.md`
 - `docs/hackathon/runbooks/DEMO_PATH_FRI_SAT.md`
+- `docs/hackathon/runbooks/DEMO_DAY_LOCK_AND_ROLLBACK_2026-05-08.md`
 - `artifacts/profiling/README_WED_2026-05-06.md`
 
-## Current Demo Mode (May 6 state)
+## Current Demo Mode (May 8 state)
 
 For the submission-safe demo path, run:
 
@@ -33,10 +35,24 @@ For the submission-safe demo path, run:
 - `SETTLEMENT_MODE=stub` (returns deterministic settlement tx hashes)
 - `PAYMENT_MODE=stub` (optional: simulate lender-side x402 payment envelopes)
 - `LORA_MODE=prompt` (current stable serving mode on this ROCm stack)
-- FP8 model serving at `http://127.0.0.1:8003/v1`
+- demo serving path currently validated at `http://127.0.0.1:8001/v1`
 
 This keeps the core product flow reliable:
 publish request -> multi-lender bidding -> accept -> settlement response.
+
+### Terminal UI demo controls (current)
+
+The terminal demo UI is served from the marketplace at:
+
+- `http://<host>:8016/terminal/`
+
+From `Bid Requests`, use:
+
+- **Run demo now**: starts a continuous stream of request submissions.
+- **Stop demo**: stops the stream.
+- Live banner shows request generation count and GPU telemetry (`/gpu/metrics`).
+
+This is the recommended on-camera path for hackathon demos.
 
 If you want to exercise the x402 middleware without real chain spend, keep
 `INSERTION_FEE_USDC` non-zero and run:
@@ -167,15 +183,18 @@ infra/devcloud.sh benchmark demo
 .venv/bin/python -m agents.runner
 .venv/bin/streamlit run ui/dealer_app.py
 
+# 5b. One-command local->GPU wiring smoke test (auto tunnel + runner + bids)
+.venv/bin/python -m scripts.gpu_frontend_smoke
+
 # 6. (Optional) seed 50 synthetic bid requests
 .venv/bin/python -m scripts.seed_apps
 
 # 7. End-to-end smoke test (publish 1 request, accept top bid, verify rev-split)
 .venv/bin/python -m scripts.e2e_test
 
-# 8. Hero-shot demo: 50 bid requests in ~10s, all 5 lenders bidding concurrently
+# 8. Hero-shot demo options
 .venv/bin/python -m scripts.concurrency_demo
-#    or: click "Run Concurrency Demo" in the Streamlit sidebar.
+#    or: use "Run demo now" in terminal UI (continuous stream until stopped).
 ```
 
 ## Running on AMD MI300X (AMD Developer Cloud)
@@ -256,8 +275,7 @@ agents/        underwriter (vLLM/OpenAI client, LORA_MODE-aware) · lender ·
 lora_training/ synthetic_data (rate-sheet → teacher → training pairs) ·
                train_lora · train_all · run-on-droplet README
 infra/         start_vllm.sh — vLLM launcher with multi-LoRA flags
-ui/            Streamlit dealer dashboard (with concurrency-demo button) ·
-               ledger inspector
+ui/            Streamlit dealer dashboard · ledger inspector · terminal live UI
 scripts/       setup_wallets · fund_wallets · seed_apps · e2e_test ·
                concurrency_demo
 tests/         test_models · test_marketplace · test_lender

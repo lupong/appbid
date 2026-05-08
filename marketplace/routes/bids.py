@@ -9,6 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 
+from data.bid_policies import LENDER_NAME_BY_ID
 from marketplace import ledger
 from marketplace.ranker import rank_bids
 from shared.models import Bid, BidCreate, RequestStatus
@@ -31,6 +32,7 @@ async def create_bid(request_id: UUID, body: BidCreate, request: Request) -> Bid
     bid = Bid(
         request_id=request_id,
         lender_id=body.lender_id,
+        lender_name=LENDER_NAME_BY_ID.get(body.lender_id),
         decision=body.decision,
         apr_bps=body.apr_bps,
         term_months=body.term_months,
@@ -52,5 +54,13 @@ async def list_bids(request_id: UUID) -> list[Bid]:
     if req is None:
         raise HTTPException(status_code=404, detail="bid request not found")
     bids = await ledger.list_bids_for_request(request_id)
-    ranked = rank_bids(bids, req)
-    return [b for b, _score in ranked]
+    latest_by_lender: dict[str, Bid] = {}
+    for bid in bids:
+        prev = latest_by_lender.get(bid.lender_id)
+        if prev is None or bid.created_at >= prev.created_at:
+            latest_by_lender[bid.lender_id] = bid
+    ranked = rank_bids(list(latest_by_lender.values()), req)
+    return [
+        b.model_copy(update={"lender_name": b.lender_name or LENDER_NAME_BY_ID.get(b.lender_id)})
+        for b, _score in ranked
+    ]

@@ -2,7 +2,7 @@
 
 A real dealer doesn't just pick the lowest APR. They balance:
   * the rate the customer will sign at,
-  * the dealer reserve (spread) they earn on the deal,
+  * the dealer incentive economics (discount vs fee),
   * the stipulation burden (each stip is cycle-time + risk of fallout),
   * the lender's confidence in the bid, and
   * the lender's funding-speed reputation.
@@ -31,14 +31,14 @@ def score_bid(bid: Bid, lender_reputation: float | None = None) -> float:
     rate_pen = bid.apr_bps
     cash_down_pen = float(bid.cash_down_required_usdc) * 0.001
     stips_pen = len(bid.stipulations) * 50
-    reserve_bonus = -bid.dealer_reserve_bps * 0.5  # dealer reserve helps the dealer
+    incentive_adjustment = -bid.dealer_reserve_bps * 0.5  # positive fee helps dealer economics
     confidence_factor = (1.0 - bid.confidence) * 100
     reputation_factor = (1.0 - rep) * 200
     return (
         rate_pen
         + cash_down_pen
         + stips_pen
-        + reserve_bonus
+        + incentive_adjustment
         + confidence_factor
         + reputation_factor
     )

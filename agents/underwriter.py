@@ -18,12 +18,18 @@ Two modes selected by ``settings.lora_mode``:
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Any
 
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
-from data.bid_policies import DECISION_SCHEMA
+from data.bid_policies import (
+    APR_BOUNDS_BPS_BY_LENDER_ID,
+    DEALER_RESERVE_POLICY_BY_LENDER_ID,
+    MAX_AMOUNT_POLICY_BY_LENDER_ID,
+    DECISION_SCHEMA,
+)
 from shared.config import get_settings
 from shared.logging import get_logger
 from shared.models import BidRequest, Decision, LenderProfile
@@ -100,7 +106,7 @@ def _normalize_stipulations(raw: Any) -> list[str]:
     return out
 
 
-def _coerce_decision_payload(raw: dict[str, Any], req: BidRequest) -> dict[str, Any]:
+def _coerce_decision_payload(raw: dict[str, Any], req: BidRequest, profile: LenderProfile) -> dict[str, Any]:
     decision_raw = str(raw.get("decision", "decline")).strip().lower()
     decision = _DECISION_ALIASES.get(decision_raw, "decline")
 
@@ -114,12 +120,15 @@ def _coerce_decision_payload(raw: dict[str, Any], req: BidRequest) -> dict[str, 
     term_months = int(raw.get("term_months", req.term_months) or req.term_months)
     max_ltv = int(raw.get("max_ltv_bps", 10_000) or 10_000)
     cash_down = float(raw.get("cash_down_required_usdc", 0) or 0.0)
-    dealer_reserve = int(raw.get("dealer_reserve_bps", req.dealer_reserve_bps) or 0)
+    dealer_reserve = int(raw.get("dealer_reserve_bps", 0) or 0)
 
     if decision == "decline":
         apr_bps = 0
         max_amount = 0.0
         cash_down = 0.0
+    else:
+        lo, hi = APR_BOUNDS_BPS_BY_LENDER_ID.get(profile.id, (300, 3600))
+        apr_bps = max(lo, min(hi, apr_bps))
 
     rationale = str(raw.get("rationale", "")).strip() or "model output required normalization"
 
@@ -137,26 +146,122 @@ def _coerce_decision_payload(raw: dict[str, Any], req: BidRequest) -> dict[str, 
     }
 
 
-def _parse_decision(content: str, req: BidRequest, *, allow_fallback: bool) -> Decision:
+def _normalize_decision(decision: Decision, profile: LenderProfile, req: BidRequest) -> Decision:
+    reserve_policy = DEALER_RESERVE_POLICY_BY_LENDER_ID.get(profile.id, {})
+    reserve_mode = str(reserve_policy.get("mode", "cap_to_request"))
+    if reserve_mode == "fixed":
+        dealer_reserve_bps = int(reserve_policy.get("bps", 0))
+    else:
+        max_bps = int(reserve_policy.get("max_bps", 200))
+        default_bps = int(reserve_policy.get("default_bps", req.dealer_reserve_bps))
+        if decision.dealer_reserve_bps == 0:
+            dealer_reserve_bps = max(0, min(max_bps, default_bps))
+        else:
+            dealer_reserve_bps = max(0, min(max_bps, decision.dealer_reserve_bps))
+
+    if decision.decision == "decline":
+        return decision.model_copy(
+            update={
+                "apr_bps": 0,
+                "max_amount_usdc": 0,
+                "cash_down_required_usdc": 0,
+                "term_months": req.term_months,
+                "dealer_reserve_bps": dealer_reserve_bps,
+            }
+        )
+    lo, hi = APR_BOUNDS_BPS_BY_LENDER_ID.get(profile.id, (300, 3600))
+    apr_bps = decision.apr_bps
+
+    # Some model outputs drift one decimal place (e.g., 4100 instead of 410).
+    # If a scaled value cleanly lands inside this lender's published band, use it.
+    if apr_bps > hi:
+        for factor in (10, 100):
+            scaled = int(round(apr_bps / factor))
+            if lo <= scaled <= hi:
+                apr_bps = scaled
+                break
+
+    apr_bps = max(lo, min(hi, apr_bps))
+
+    amt_policy = MAX_AMOUNT_POLICY_BY_LENDER_ID.get(profile.id, {})
+    mult_default = Decimal(str(amt_policy.get("max_multiplier_default", Decimal("1.05"))))
+    mult_high = Decimal(str(amt_policy.get("max_multiplier_high_fico", mult_default)))
+    mult_low = Decimal(str(amt_policy.get("max_multiplier_low_fico", mult_default)))
+    term_penalty_bps = int(amt_policy.get("term_penalty_bps", 0))
+    hard_cap = amt_policy.get("hard_cap_usdc")
+    hard_cap_dec = Decimal(str(hard_cap)) if hard_cap is not None else None
+
+    if req.applicant_fico >= 740:
+        multiplier = mult_high
+    elif req.applicant_fico < 620:
+        multiplier = mult_low
+    else:
+        multiplier = mult_default
+
+    if req.term_months > 72:
+        penalty = Decimal(term_penalty_bps) / Decimal(10_000)
+        multiplier = max(Decimal("1.00"), multiplier - penalty)
+
+    if req.vehicle_type.value == "used":
+        multiplier = max(Decimal("1.00"), multiplier - Decimal("0.02"))
+    elif req.vehicle_type.value == "ev":
+        multiplier = multiplier + Decimal("0.01")
+
+    max_allowed = (req.loan_amount * multiplier).quantize(Decimal("0.000001"))
+    if hard_cap_dec is not None:
+        max_allowed = min(max_allowed, hard_cap_dec)
+
+    proposed_amount = decision.max_amount_usdc
+    if proposed_amount <= 0:
+        proposed_amount = req.loan_amount
+
+    # If the model returns a near-par amount on approve, apply a sheet-informed
+    # upsell floor (still bounded by lender caps) so lenders can present
+    # higher maximum approvals when policy allows.
+    if proposed_amount <= (req.loan_amount * Decimal("1.01")):
+        proposed_amount = req.loan_amount * multiplier
+
+    normalized_amount = min(proposed_amount, max_allowed).quantize(Decimal("0.000001"))
+
+    return decision.model_copy(
+        update={
+            "apr_bps": apr_bps,
+            "dealer_reserve_bps": dealer_reserve_bps,
+            "max_amount_usdc": normalized_amount,
+        }
+    )
+
+
+def _parse_decision(
+    content: str,
+    req: BidRequest,
+    profile: LenderProfile,
+    *,
+    allow_fallback: bool,
+) -> Decision:
     try:
-        return Decision.model_validate_json(content)
+        parsed = Decision.model_validate_json(content)
+        return _normalize_decision(parsed, profile, req)
     except (ValidationError, ValueError, json.JSONDecodeError):
         try:
             raw = json.loads(_extract_json_object(content))
             if not isinstance(raw, dict):
                 raise ValueError("response JSON must be an object")
-            coerced = _coerce_decision_payload(raw, req)
-            return Decision.model_validate(coerced)
+            coerced = _coerce_decision_payload(raw, req, profile)
+            parsed = Decision.model_validate(coerced)
+            return _normalize_decision(parsed, profile, req)
         except Exception:
             if not allow_fallback:
                 raise
-            fallback = _coerce_decision_payload({}, req)
-            return Decision.model_validate(fallback)
+            fallback = _coerce_decision_payload({}, req, profile)
+            parsed = Decision.model_validate(fallback)
+            return _normalize_decision(parsed, profile, req)
     except Exception:
         if not allow_fallback:
             raise
-        fallback = _coerce_decision_payload({}, req)
-        return Decision.model_validate(fallback)
+        fallback = _coerce_decision_payload({}, req, profile)
+        parsed = Decision.model_validate(fallback)
+        return _normalize_decision(parsed, profile, req)
 
 
 def build_system_prompt(profile: LenderProfile, lora_mode: str) -> str:
@@ -205,7 +310,7 @@ class Underwriter:
                     response_format={"type": "json_object"},
                 )
                 content = resp.choices[0].message.content or "{}"
-                return _parse_decision(content, req, allow_fallback=(attempt == 2))
+                return _parse_decision(content, req, profile, allow_fallback=(attempt == 2))
             except Exception as e:
                 last_err = e
                 logger.warning(

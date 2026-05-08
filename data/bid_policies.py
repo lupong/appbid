@@ -22,6 +22,8 @@ and add it to ``LENDER_PROFILES``. That's the entire onboarding contract.
 """
 from __future__ import annotations
 
+from decimal import Decimal
+
 from shared.models import LenderProfile
 
 LORA_ADAPTERS_DIR = "./lora_adapters"
@@ -296,6 +298,78 @@ LENDER_PROFILES: list[LenderProfile] = [
     USED_ONLY_CU,
     EV_CAPTIVE,
 ]
+
+LENDER_NAME_BY_ID: dict[str, str] = {p.id: p.name for p in LENDER_PROFILES}
+
+# Practical APR guardrails (basis points) used to normalize LLM outliers in
+# prompt-mode fallback. Ranges are derived from each lender's published rate
+# sheet bands with modest headroom for risk-tier variation.
+APR_BOUNDS_BPS_BY_LENDER_ID: dict[str, tuple[int, int]] = {
+    "prime-bank": (499, 1800),
+    "mid-market": (169, 1600),
+    "subprime": (995, 3000),
+    "used-only-cu": (499, 1600),
+    "ev-captive": (449, 900),
+}
+
+# Dealer reserve policy by lender, derived from each lender's published sheet.
+# mode:
+#   fixed -> always use bps
+#   cap_to_request -> use request reserve but cap it at max_bps
+DEALER_RESERVE_POLICY_BY_LENDER_ID: dict[str, dict[str, int | str]] = {
+    # STCU sheet states 2.00% dealer compensation.
+    "prime-bank": {"mode": "cap_to_request", "max_bps": 200, "default_bps": 200},
+    # Unitus sheet does not publish a fixed dealer reserve; keep conservative.
+    "mid-market": {"mode": "cap_to_request", "max_bps": 125, "default_bps": 75},
+    # Exeter sheet explicitly disallows dealer APR markup (power-flat style).
+    "subprime": {"mode": "fixed", "bps": 0},
+    # FSCU sheet states dealer reserve is flat 1.50%.
+    "used-only-cu": {"mode": "fixed", "bps": 150},
+    # Crouse FCU sheet does not specify reserve participation.
+    "ev-captive": {"mode": "fixed", "bps": 0},
+}
+
+# Max amount financing policies. These are used as guardrails on
+# `max_amount_usdc` to allow lender-specific upsell while respecting sheet
+# constraints.
+MAX_AMOUNT_POLICY_BY_LENDER_ID: dict[str, dict[str, int | Decimal]] = {
+    # STCU: term/LTV constrained; top tiers can stretch to ~115% advance.
+    "prime-bank": {
+        "max_multiplier_default": Decimal("1.08"),
+        "max_multiplier_high_fico": Decimal("1.15"),
+        "max_multiplier_low_fico": Decimal("1.02"),
+        "term_penalty_bps": 500,
+    },
+    # Unitus: value/term constraints; moderate advance room.
+    "mid-market": {
+        "max_multiplier_default": Decimal("1.06"),
+        "max_multiplier_high_fico": Decimal("1.10"),
+        "max_multiplier_low_fico": Decimal("1.00"),
+        "term_penalty_bps": 500,
+    },
+    # Exeter: explicit amount financed cap and high front-end advance.
+    "subprime": {
+        "max_multiplier_default": Decimal("1.28"),
+        "max_multiplier_high_fico": Decimal("1.30"),
+        "max_multiplier_low_fico": Decimal("1.20"),
+        "hard_cap_usdc": Decimal("50000"),
+        "term_penalty_bps": 300,
+    },
+    # FSCU: table + LTV limits (up to ~115% on stronger tiers).
+    "used-only-cu": {
+        "max_multiplier_default": Decimal("1.08"),
+        "max_multiplier_high_fico": Decimal("1.15"),
+        "max_multiplier_low_fico": Decimal("1.00"),
+        "term_penalty_bps": 500,
+    },
+    # Crouse FCU: no explicit high advance schedule published; conservative.
+    "ev-captive": {
+        "max_multiplier_default": Decimal("1.03"),
+        "max_multiplier_high_fico": Decimal("1.06"),
+        "max_multiplier_low_fico": Decimal("1.00"),
+        "term_penalty_bps": 400,
+    },
+}
 
 
 if __name__ == "__main__":

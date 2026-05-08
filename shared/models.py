@@ -4,10 +4,10 @@ Money is represented as Decimal in app code; never float. Values flowing on
 chain are converted to USDC base units (6 decimals) at the wallet boundary.
 
 The marketplace shops *bid requests* — PII-free structural proposals
-(dealer-pulled FICO, vehicle, term, amount, state, reserve). Lenders return
-``Bid`` packages — rate, term, max amount, LTV, cash down, dealer reserve,
+(dealer-pulled FICO, vehicle, term, amount, state, incentive). Lenders return
+``Bid`` packages — rate, term, max amount, LTV, cash down, dealer incentive,
 and stipulations — and the marketplace ranker scores on what dealers
-actually optimize for (rate, reserve earned, stip burden, lender
+actually optimize for (rate, incentive economics, stip burden, lender
 reputation). Identity verification, fresh credit pulls, and KYC happen
 out-of-band at the funding stage with the winning lender, not here.
 """
@@ -68,7 +68,8 @@ class BidRequest(BaseModel):
     vehicle_type: VehicleType
     term_months: int = Field(ge=12, le=84)
     state: str = Field(min_length=2, max_length=2)
-    dealer_reserve_bps: int = Field(ge=0, le=500)
+    # Signed dealer incentive in bps: negative = dealer discount, positive = fee.
+    dealer_reserve_bps: int = Field(ge=-500, le=500)
     created_at: datetime = Field(default_factory=_utcnow)
     status: RequestStatus = RequestStatus.OPEN
 
@@ -94,6 +95,7 @@ class Bid(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     request_id: UUID
     lender_id: str
+    lender_name: str | None = None
 
     # Pricing package
     decision: DecisionType = DecisionType.APPROVE
@@ -102,7 +104,8 @@ class Bid(BaseModel):
     max_amount_usdc: Decimal = Field(gt=0, description="Max amount the lender will fund")
     max_ltv_bps: int = Field(ge=0, le=20_000, default=10_000, description="Max LTV in bps")
     cash_down_required_usdc: Decimal = Field(ge=0, default=Decimal("0"))
-    dealer_reserve_bps: int = Field(ge=0, le=500, default=0)
+    # Signed dealer incentive in bps: negative = dealer discount, positive = fee.
+    dealer_reserve_bps: int = Field(ge=-500, le=500, default=0)
     stipulations: list[str] = Field(default_factory=list)
 
     # Meta
@@ -165,7 +168,7 @@ class Decision(BaseModel):
     max_amount_usdc: Decimal = Field(ge=0)
     max_ltv_bps: int = Field(ge=0, le=20_000, default=10_000)
     cash_down_required_usdc: Decimal = Field(ge=0, default=Decimal("0"))
-    dealer_reserve_bps: int = Field(ge=0, le=500, default=0)
+    dealer_reserve_bps: int = Field(ge=-500, le=500, default=0)
     stipulations: list[str] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
@@ -181,7 +184,7 @@ class BidRequestCreate(BaseModel):
     vehicle_type: VehicleType
     term_months: int = Field(ge=12, le=84)
     state: str = Field(min_length=2, max_length=2)
-    dealer_reserve_bps: int = Field(ge=0, le=500)
+    dealer_reserve_bps: int = Field(ge=-500, le=500)
 
     @field_validator("state")
     @classmethod
@@ -199,7 +202,7 @@ class BidCreate(BaseModel):
     max_amount_usdc: Decimal = Field(gt=0)
     max_ltv_bps: int = Field(ge=0, le=20_000, default=10_000)
     cash_down_required_usdc: Decimal = Field(ge=0, default=Decimal("0"))
-    dealer_reserve_bps: int = Field(ge=0, le=500, default=0)
+    dealer_reserve_bps: int = Field(ge=-500, le=500, default=0)
     stipulations: list[str] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0, default=0.9)
     rationale: str

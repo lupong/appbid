@@ -7,11 +7,14 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from marketplace.routes.apps import router as apps_router
 from marketplace.routes.bids import router as bids_router
+from marketplace.routes.gpu import router as gpu_router
 from marketplace.routes.settle import router as settle_router
 from marketplace.routes.treasury import router as treasury_router
 from marketplace.x402_middleware import X402InsertionFeeMiddleware
@@ -56,6 +59,14 @@ def create_app() -> FastAPI:
     fastapi_app.include_router(bids_router)
     fastapi_app.include_router(settle_router)
     fastapi_app.include_router(treasury_router)
+    fastapi_app.include_router(gpu_router)
+    terminal_dir = Path(__file__).resolve().parent.parent / "ui" / "terminal"
+    if terminal_dir.exists():
+        fastapi_app.mount(
+            "/terminal",
+            StaticFiles(directory=str(terminal_dir), html=True),
+            name="terminal",
+        )
     return fastapi_app
 
 

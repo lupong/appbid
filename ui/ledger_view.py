@@ -12,12 +12,16 @@ import httpx
 import streamlit as st
 
 from shared.config import get_settings
+from ui.design_theme import apply_appbid_theme, render_page_header, render_sidebar_brand
 
 st.set_page_config(page_title="Credit App+ Ledger", layout="wide")
 
 settings = get_settings()
 MKT = settings.marketplace_url
 BASESCAN_TX = "https://sepolia.basescan.org/tx"
+DEMO_MODE = settings.settlement_mode
+
+apply_appbid_theme()
 
 
 def _api_get(path: str, params: dict[str, Any] | None = None) -> Any:
@@ -32,8 +36,24 @@ def _tx(tx_hash: str) -> str:
     return f"[{tx_hash[:10]}…]({BASESCAN_TX}/{tx_hash})"
 
 
-st.title("Credit App+ Ledger")
+render_page_header(
+    "Credit App+ Treasury & Ledger",
+    "Inspect settled requests, lender bids, and settlement traces in one place.",
+    DEMO_MODE.upper(),
+)
 st.caption(f"Marketplace: `{MKT}`")
+with st.sidebar:
+    render_sidebar_brand()
+
+
+def _render_overview_card(label: str, value: str, sub: str) -> str:
+    return (
+        "<div class='appbid-overview-card'>"
+        f"<div class='label'>{label}</div>"
+        f"<div class='value'>{value}</div>"
+        f"<div class='sub'>{sub}</div>"
+        "</div>"
+    )
 
 status_filter = st.selectbox(
     "Filter by status", ["all", "open", "closed", "funded_pending"], index=0
@@ -45,6 +65,41 @@ try:
 except httpx.HTTPError as e:
     st.error(f"Marketplace unreachable: {e}")
     st.stop()
+
+try:
+    treasury = _api_get("/treasury")
+    settled_count = sum(1 for r in requests if r["status"] == "closed")
+    summary_cols = st.columns(4)
+    with summary_cols[0]:
+        st.markdown(
+            _render_overview_card("Total Bids", str(treasury["total_bids"]), "across marketplace"),
+            unsafe_allow_html=True,
+        )
+    with summary_cols[1]:
+        st.markdown(
+            _render_overview_card("Settlements", str(settled_count), "closed requests"),
+            unsafe_allow_html=True,
+        )
+    with summary_cols[2]:
+        st.markdown(
+            _render_overview_card(
+                "Win Premium",
+                f"${Decimal(treasury['win_premium_total_usdc']):,.2f}",
+                "gross settled premium",
+            ),
+            unsafe_allow_html=True,
+        )
+    with summary_cols[3]:
+        st.markdown(
+            _render_overview_card(
+                "Marketplace Cut",
+                f"${Decimal(treasury['marketplace_cut_usdc']):,.2f}",
+                "protocol take",
+            ),
+            unsafe_allow_html=True,
+        )
+except httpx.HTTPError:
+    pass
 
 if not requests:
     st.info("No bid requests yet.")

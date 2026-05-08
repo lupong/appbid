@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 from typing import Any
 
 import httpx
@@ -30,6 +31,8 @@ from shared.models import (
 logger = get_logger("agents.lender")
 
 POLL_INTERVAL_S = 2.0
+MAX_OPEN_REQUESTS_PER_POLL = int(os.getenv("LENDER_MAX_OPEN_REQUESTS_PER_POLL", "24"))
+MAX_INFLIGHT_EVALS = int(os.getenv("LENDER_MAX_INFLIGHT_EVALS", "6"))
 
 
 def _encode_x_payment(payload: dict[str, Any]) -> str:
@@ -156,7 +159,10 @@ class Lender:
     async def _fetch_open_requests(self, http: httpx.AsyncClient) -> list[BidRequest]:
         r = await http.get(f"{self._mkt}/apps", params={"status": "open"})
         r.raise_for_status()
-        return [BidRequest.model_validate(item) for item in r.json()]
+        rows = r.json()
+        if MAX_OPEN_REQUESTS_PER_POLL > 0:
+            rows = rows[:MAX_OPEN_REQUESTS_PER_POLL]
+        return [BidRequest.model_validate(item) for item in rows]
 
     async def watch(self, stop: asyncio.Event | None = None) -> None:
         stop = stop or asyncio.Event()
@@ -169,6 +175,8 @@ class Lender:
                     logger.warning("poll failed lender=%s err=%s", self.profile.id, e)
                 else:
                     for req in requests:
+                        if len(pending) >= MAX_INFLIGHT_EVALS:
+                            break
                         rid = str(req.id)
                         if rid in self._seen:
                             continue

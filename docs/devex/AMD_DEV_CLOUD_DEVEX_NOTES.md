@@ -771,6 +771,37 @@ experience, friction points, and improvement ideas.
   - droplet id `569562698` deleted (`204` API response).
   - post-check: no active droplets in project account at wrap-up.
 
+### 2026-05-08 04:26-05:15 (local) — strict 72B retest after 7B automation drift
+- Context:
+  - user requested that no further benchmark narrative rely on 7B.
+  - objective was to re-run AITER ON/OFF comparisons on `Qwen2.5-72B` FP8 PTPC only.
+- Fresh droplet used:
+  - id `569722031`
+  - public IP `129.212.183.183`
+- Retest packs executed:
+  - `72b_retest_20260508_092743` (initial revalidation)
+  - `72b_retest_pack_20260508_094115` (repeat pack + quality checks)
+  - `72b_retest_tuned_20260508_101732` (tuned serve profile: `max-num-seqs=128`)
+- Key measured outcomes:
+  - Initial repeat pack (`72b_retest_pack_20260508_094115`):
+    - `c=2`: AITER ON underperformed OFF on req/s and p95.
+    - `c=4`: AITER ON near parity on throughput and modest p95 improvement.
+    - quality: both ON and OFF `20/20` JSON parse pass.
+  - Tuned pack (`72b_retest_tuned_20260508_101732`):
+    - `c=4` avg (2 repeats): ON vs OFF
+      - req/s: `2.73` vs `2.69` (`+1.5%`)
+      - tok/s: `122.33` vs `118.97` (`+2.8%`)
+      - p95: `1.56s` vs `1.75s` (`~10.9% lower`)
+    - `c=8` avg (2 repeats): ON vs OFF
+      - req/s: `4.90` vs `5.27` (`-7.0%`)
+      - tok/s: `223.75` vs `230.06` (`-2.7%`)
+      - p95: `1.91s` vs `1.62s` (`~17.9% worse`)
+- Interpretation:
+  - AITER benefit is profile-dependent for this 72B stack:
+    - favorable at moderate concurrency (`c=4`) in tuned settings,
+    - not favorable at higher tested concurrency (`c=8`) in this run.
+  - final narrative must remain 72B-scoped and avoid universal AITER-win claims.
+
 ## Suggested Structure for Future Entries
 - **What I was trying to do**
 - **What worked well**

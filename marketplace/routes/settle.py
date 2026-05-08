@@ -49,6 +49,18 @@ class AcceptResponse(BaseModel):
     settlement: SettlementResponse
 
 
+class SettlementDetailResponse(BaseModel):
+    id: UUID
+    request_id: UUID
+    winning_bid_id: UUID
+    dealer_payout_tx: str
+    marketplace_cut_tx: str
+    reserve_tx: str
+    created_at: str
+    mode: str
+    splits: SplitDetail
+
+
 @router.post("/accept", response_model=AcceptResponse)
 async def accept_bid(
     request_id: UUID,
@@ -146,3 +158,36 @@ async def get_settlement(request_id: UUID) -> Settlement:
     if settlement is None:
         raise HTTPException(status_code=404, detail="no settlement for this request")
     return settlement
+
+
+@router.get("/settlement/detail", response_model=SettlementDetailResponse)
+async def get_settlement_detail(request_id: UUID) -> SettlementDetailResponse:
+    settlement = await ledger.get_settlement_for_request(request_id)
+    if settlement is None:
+        raise HTTPException(status_code=404, detail="no settlement for this request")
+
+    req = await ledger.get_request(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail="bid request not found")
+
+    settings = get_settings()
+    win_premium, dealer_share, marketplace_share, reserve_share = compute_splits(
+        req.loan_amount, settings.win_premium_rate
+    )
+
+    return SettlementDetailResponse(
+        id=settlement.id,
+        request_id=settlement.request_id,
+        winning_bid_id=settlement.winning_bid_id,
+        dealer_payout_tx=settlement.dealer_payout_tx,
+        marketplace_cut_tx=settlement.marketplace_cut_tx,
+        reserve_tx=settlement.reserve_tx,
+        created_at=settlement.created_at.isoformat(),
+        mode=settings.settlement_mode,
+        splits=SplitDetail(
+            win_premium_usdc=win_premium,
+            dealer_usdc=dealer_share,
+            marketplace_usdc=marketplace_share,
+            reserve_usdc=reserve_share,
+        ),
+    )

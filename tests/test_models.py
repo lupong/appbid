@@ -81,7 +81,7 @@ def test_bid_request_json_roundtrip() -> None:
         ("applicant_fico", 900),  # above 850
         ("term_months", 6),  # below 12
         ("term_months", 100),  # above 84
-        ("dealer_reserve_bps", -1),
+        ("dealer_reserve_bps", -600),
         ("dealer_reserve_bps", 600),
         ("loan_amount", Decimal("0")),
         ("loan_amount", Decimal("-1")),
@@ -164,6 +164,7 @@ def test_bid_full_pricing_package_roundtrip() -> None:
         ("max_amount_usdc", Decimal("0")),
         ("max_amount_usdc", Decimal("-1")),
         ("term_months", 6),
+        ("dealer_reserve_bps", -600),
         ("dealer_reserve_bps", 600),
         ("confidence", -0.1),
     ],
@@ -316,6 +317,7 @@ def test_decision_full_pricing_package() -> None:
         ("confidence", -0.1),
         ("confidence", 1.1),
         ("term_months", 6),
+        ("dealer_reserve_bps", -600),
         ("dealer_reserve_bps", 600),
     ],
 )

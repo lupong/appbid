@@ -20,9 +20,9 @@ To keep the end-to-end product demo unblocked, use `SETTLEMENT_MODE=stub` for de
 
 ## Known-good runtime topology
 
-- vLLM FP8 endpoint: `http://127.0.0.1:8003/v1`
-- Marketplace (demo): `http://127.0.0.1:8015`
-- Runner (demo): points to `:8015`
+- vLLM endpoint: `http://127.0.0.1:8001/v1`
+- Marketplace + terminal UI: `http://127.0.0.1:8016` and `/terminal/`
+- Runner (demo): points to `:8016`
 
 ## Start commands (on droplet)
 
@@ -30,29 +30,37 @@ From `/root/appbid`:
 
 ```bash
 # 1) Marketplace in demo-safe mode (no insertion fee + stub settlement)
-nohup env INSERTION_FEE_USDC=0 SETTLEMENT_MODE=stub \
+nohup env INSERTION_FEE_USDC=0 SETTLEMENT_MODE=stub PAYMENT_MODE=stub X402_FACILITATOR_MODE=local \
   .venv/bin/python -m uvicorn marketplace.server:app \
-  --host 127.0.0.1 --port 8015 \
-  > /root/appbid/marketplace-8015.log 2>&1 &
+  --host 0.0.0.0 --port 8016 \
+  > /root/appbid/marketplace-8016.log 2>&1 &
 
-# 2) Runner against demo marketplace (stub payment mode is optional here;
-#    it matters when INSERTION_FEE_USDC is non-zero and you still want x402 simulated)
-nohup env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8015 \
+# 2) Runner against demo marketplace
+nohup env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8016 \
   PAYMENT_MODE=stub \
-  VLLM_URL=http://127.0.0.1:8003/v1 \
-  VLLM_MODEL=/app/models/qwen2.5-72b-ptpc-fp8-vllm \
+  VLLM_URL=http://127.0.0.1:8001/v1 \
+  VLLM_MODEL=Qwen/Qwen2.5-7B-Instruct \
   LORA_MODE=prompt \
   .venv/bin/python -m agents.runner \
-  > /root/appbid/runner-fp8-8015.log 2>&1 &
+  > /root/appbid/runner.log 2>&1 &
 ```
 
 ## Demo verification command
 
 ```bash
 cd /root/appbid
-env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8015 \
+env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8016 \
   .venv/bin/python scripts/e2e_test.py
 ```
+
+## Live stream demo path (recommended)
+
+Use the in-app continuous generator:
+
+1. open `http://<droplet-ip>:8016/terminal/`
+2. go to **Bid Requests**
+3. click **Run demo now**
+4. click **Stop demo** to end the stream
 
 ## Simulated x402 + simulated settlement (full product-shape E2E)
 
@@ -86,11 +94,11 @@ env MARKETPLACE_HOST=127.0.0.1 MARKETPLACE_PORT=8016 .venv/bin/python scripts/e2
 
 ## Optional cleanup (after demo)
 
-If you want to keep only the demo stack alive, stop older marketplace/runner ports (`8011`, `8012`, `8013`, `8014`) and keep:
+If you want to keep only the demo stack alive, keep:
 
-- vLLM FP8 on `8003`
-- marketplace on `8015`
-- runner on `8015`
+- vLLM on `8001`
+- marketplace on `8016`
+- runner on `8016`
 
 ## Other planned items (parked, not dropped)
 
